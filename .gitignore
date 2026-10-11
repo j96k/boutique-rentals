@@ -1,0 +1,15 @@
+# Never upload these
+.env
+*.db
+*.pem
+*.jks
+*.keystore
+__pycache__/
+.venv/
+backend/database/
+backend/uploads/
+deploy/*.tar.gz
+tools/
+flutter/
+android-sdk/
+.pub-cache/

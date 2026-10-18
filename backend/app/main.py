@@ -8,7 +8,7 @@ from . import models  # noqa: F401  (registers tables)
 from .config import BASE_DIR, settings
 from .database import Base, engine, get_db, upgrade_schema
 from .models import StoredImage
-from .routers import auth, cloths, earnings, inquiries, public, rentals
+from .routers import auth, cloths, customers, earnings, inquiries, public, rentals
 
 Base.metadata.create_all(bind=engine)  # creates tables on first run
 upgrade_schema()  # adds columns introduced later (keeps existing data)
@@ -23,6 +23,7 @@ app.include_router(cloths.router)
 app.include_router(rentals.router)
 app.include_router(inquiries.router)
 app.include_router(earnings.router)
+app.include_router(customers.router)
 app.include_router(public.router)
 
 

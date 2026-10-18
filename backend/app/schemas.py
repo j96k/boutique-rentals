@@ -82,6 +82,7 @@ class RentalOut(BaseModel):
     deposit_kept: float
     deposit_status: str  # none | held | refunded | part_kept
     deposit_note: str | None
+    deposit_settled_at: datetime | None
     notes: str | None
     status: str  # booked | on_rent | overdue | returned
 
@@ -224,3 +225,25 @@ class EarningsOut(BaseModel):
     totals: EarningsTotals
     by_date: list[EarningsByDate]
     by_cloth: list[EarningsByCloth]
+
+
+# ---------- Customers ----------
+class CustomerSummary(BaseModel):
+    key: str  # "p:9812345678" (by phone) or "n:priya shah" (no phone)
+    name: str
+    phone: str | None
+    bookings: int
+    last_booking_at: datetime | None
+    rent_total: float
+    rent_paid: float
+    balance_due: float
+    deposits_held: float  # still to give back to this customer
+    deposits_returned: float
+    deposits_kept: float
+    inquiries: int
+
+
+class CustomerDetail(CustomerSummary):
+    other_names: list[str]  # if the same phone was booked under different names
+    rentals: list[RentalOut]  # newest first
+    waitlist: list[InquiryOut]

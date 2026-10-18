@@ -38,6 +38,7 @@ def rental_out(r: Rental, now: datetime) -> RentalOut:
         deposit_kept=r.deposit_kept,
         deposit_status=r.deposit_status,
         deposit_note=r.deposit_note,
+        deposit_settled_at=r.deposit_settled_at,
         notes=r.notes,
         status=r.status(now),
     )

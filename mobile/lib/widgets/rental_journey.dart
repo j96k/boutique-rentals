@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../models.dart';
+import '../screens/customers_screen.dart';
 import '../theme.dart';
 import '../utils.dart';
 import 'common.dart';
@@ -12,11 +13,18 @@ import 'common.dart';
 /// and back, drawn like a thread with a needle moving along it.
 class RentalJourneyCard extends StatefulWidget {
   const RentalJourneyCard(
-      {super.key, required this.rental, this.onReturn, this.onEdit, this.onCancel, this.showCloth = false});
+      {super.key,
+      required this.rental,
+      this.onReturn,
+      this.onEdit,
+      this.onCancel,
+      this.onAmounts,
+      this.showCloth = false});
   final Rental rental;
   final VoidCallback? onReturn;
   final VoidCallback? onEdit;
   final VoidCallback? onCancel; // shown for bookings that haven't gone out yet
+  final VoidCallback? onAmounts; // edit rent / paid / deposit
   final bool showCloth;
 
   @override
@@ -83,7 +91,23 @@ class _RentalJourneyCardState extends State<RentalJourneyCard> {
                   ]),
                   const SizedBox(height: 4),
                 ],
-                Text(r.customerName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                // Tap the name → this customer's full history.
+                InkWell(
+                  onTap: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => CustomerDetailScreen(customerKey: customerKey(r.customerName, r.customerPhone))),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    Flexible(
+                      child: Text(r.customerName,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800)),
+                    ),
+                    const SizedBox(width: 4),
+                    const Icon(Icons.history_rounded, size: 16, color: AppColors.plumSoft),
+                  ]),
+                ),
                 if (r.customerPhone != null && r.customerPhone!.isNotEmpty)
                   Text(r.customerPhone!, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
               ]),
@@ -110,12 +134,13 @@ class _RentalJourneyCardState extends State<RentalJourneyCard> {
                 child: Text(r.notes!, style: const TextStyle(color: AppColors.muted)),
               ),
           ],
-          if (r.isActive && (widget.onReturn != null || widget.onEdit != null || widget.onCancel != null || r.customerPhone != null)) ...[
+          if (r.isActive && (widget.onReturn != null || widget.onEdit != null || widget.onCancel != null || widget.onAmounts != null || r.customerPhone != null)) ...[
             const SizedBox(height: 14),
             Wrap(spacing: 8, runSpacing: 8, children: [
               if (widget.onReturn != null && status != 'booked')
                 _Action(Icons.assignment_turned_in_rounded, 'Mark returned', widget.onReturn!, filled: true),
               if (widget.onEdit != null) _Action(Icons.edit_calendar_rounded, 'Change', widget.onEdit!),
+              if (widget.onAmounts != null) _Action(Icons.currency_rupee_rounded, 'Amounts', widget.onAmounts!),
               if (widget.onCancel != null && status == 'booked')
                 _Action(Icons.event_busy_rounded, 'Cancel booking', widget.onCancel!, danger: true),
               if (r.customerPhone?.isNotEmpty ?? false) ...[

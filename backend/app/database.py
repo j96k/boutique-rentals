@@ -70,6 +70,7 @@ _NEW_COLUMNS = {
         ("deposit_amount", "NUMERIC(10,2) DEFAULT 0"),
         ("deposit_returned", "NUMERIC(10,2)"),
         ("deposit_note", "TEXT"),
+        ("deposit_settled_at", "TIMESTAMP"),
     ],
 }
 
@@ -91,3 +92,8 @@ def upgrade_schema() -> None:
                     ))
         # Rent can't be less than what was already paid (old bookings with a ₹0 cloth price).
         conn.execute(text("UPDATE rentals SET rent_amount = advance_paid WHERE rent_amount < advance_paid"))
+        # Deposits settled before the date was recorded: use the day the cloth came back.
+        conn.execute(text(
+            "UPDATE rentals SET deposit_settled_at = returned_at "
+            "WHERE deposit_returned IS NOT NULL AND deposit_settled_at IS NULL"
+        ))

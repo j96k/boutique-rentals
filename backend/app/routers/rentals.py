@@ -88,6 +88,7 @@ def _settle_deposit(rental: Rental, returned: float, note: str | None) -> None:
         raise HTTPException(422, f"Can't give back more than the deposit ({float(rental.deposit_amount or 0):.0f})")
     rental.deposit_returned = returned
     rental.deposit_note = (note or "").strip() or None
+    rental.deposit_settled_at = datetime.now().replace(microsecond=0)
 
 
 @router.post("/rentals/{rental_id}/return", response_model=RentalOut)

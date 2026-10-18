@@ -59,6 +59,7 @@ class Rental(Base):
     deposit_amount: Mapped[float] = mapped_column(Numeric(10, 2), default=0)  # security deposit taken
     deposit_returned: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)  # None = not settled yet
     deposit_note: Mapped[str | None] = mapped_column(Text, nullable=True)  # e.g. why part was kept
+    deposit_settled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # when it was given back
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

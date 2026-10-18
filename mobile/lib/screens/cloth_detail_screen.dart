@@ -6,11 +6,13 @@ import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/booking_calendar.dart';
+import '../widgets/amounts_sheet.dart';
 import '../widgets/common.dart';
 import '../widgets/inquiry_widgets.dart';
 import '../widgets/rental_journey.dart';
 import '../widgets/return_sheet.dart';
 import 'cloth_form_screen.dart';
+import 'customers_screen.dart';
 import 'inquiry_form_screen.dart';
 import 'rental_form_screen.dart';
 
@@ -47,6 +49,10 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
     setState(() => _future = Api.instance.cloth(widget.clothId));
     _loadInquiries();
     await _future;
+  }
+
+  Future<void> _amounts(Rental r) async {
+    if (await editAmountsFlow(context, r)) _reload();
   }
 
   Future<void> _cancel(Rental r) async {
@@ -250,6 +256,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
                   rental: c.currentRental!,
                   onReturn: () => _return(c.currentRental!),
                   onEdit: () => _newRental(c, edit: c.currentRental),
+                  onAmounts: () => _amounts(c.currentRental!),
                 )
               else
                 _AvailableBanner(next: c.nextBooking),
@@ -289,7 +296,8 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
                           rental: r,
                           onReturn: () => _return(r),
                           onEdit: () => _newRental(c, edit: r),
-                          onCancel: () => _cancel(r)),
+                          onCancel: () => _cancel(r),
+                          onAmounts: () => _amounts(r)),
                     )),
               ],
               if (upcoming.isNotEmpty) ...[
@@ -300,7 +308,8 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
                           rental: r,
                           onReturn: () => _return(r),
                           onEdit: () => _newRental(c, edit: r),
-                          onCancel: () => _cancel(r)),
+                          onCancel: () => _cancel(r),
+                          onAmounts: () => _amounts(r)),
                     )),
               ],
               ..._inquirySection(),
@@ -380,6 +389,11 @@ class _HistoryTile extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: 10),
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             ListTile(
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => CustomerDetailScreen(customerKey: customerKey(r.customerName, r.customerPhone))),
+              ),
               leading: CircleAvatar(
                 backgroundColor: AppColors.goldSoft,
                 child: Text(r.customerName.characters.first.toUpperCase(),
@@ -393,6 +407,16 @@ class _HistoryTile extends StatelessWidget {
             ),
             if (r.rentAmount > 0 || r.depositAmount > 0)
               Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: MoneyLine(rental: r)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 16, 0),
+              child: TextButton.icon(
+                onPressed: () async {
+                  if (await editAmountsFlow(context, r)) onChanged();
+                },
+                icon: const Icon(Icons.currency_rupee_rounded, size: 18),
+                label: const Text('Edit amounts'),
+              ),
+            ),
             if (r.depositStatus == 'held')
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),

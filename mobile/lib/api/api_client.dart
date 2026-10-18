@@ -197,6 +197,9 @@ class Api {
       }));
   Future<Rental> settleDeposit(int id, double returned, String? note) async =>
       Rental.fromJson(await post('/rentals/$id/deposit', {'deposit_returned': returned, 'deposit_note': note}));
+  Future<List<CustomerSummary>> customers(String q) async =>
+      ((await get('/customers', {'q': q})) as List).map((e) => CustomerSummary.fromJson(e)).toList();
+  Future<CustomerDetail> customer(String key) async => CustomerDetail.fromJson(await get('/customers/detail', {'key': key}));
   Future<Earnings> earnings(DateTime start, DateTime end) async =>
       Earnings.fromJson(await get('/earnings', {'start': apiDate(start), 'end': apiDate(end)}));
   Future<void> deleteRental(int id) => delete('/rentals/$id');

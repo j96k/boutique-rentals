@@ -4,11 +4,13 @@ import '../api/api_client.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
+import '../widgets/amounts_sheet.dart';
 import '../widgets/common.dart';
 import '../widgets/inquiry_widgets.dart';
 import '../widgets/rental_journey.dart';
 import '../widgets/return_sheet.dart';
 import 'cloth_detail_screen.dart';
+import 'customers_screen.dart';
 import 'find_cloth.dart';
 import 'scan_screen.dart';
 import 'waitlist_screen.dart';
@@ -128,6 +130,31 @@ class _TodayScreenState extends State<TodayScreen> {
             ),
           ]),
         ),
+        const SizedBox(height: 10),
+        // Second way in: find a customer by name or phone (history, payments, deposits).
+        Material(
+          color: Colors.white.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(14),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(14),
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const CustomersScreen()));
+              widget.onChanged();
+            },
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(children: [
+                Icon(Icons.people_alt_rounded, color: AppColors.gold),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text('Customers — search name or phone for history & deposits',
+                      style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                ),
+                Icon(Icons.chevron_right_rounded, color: Colors.white70),
+              ]),
+            ),
+          ),
+        ),
       ]),
     );
   }
@@ -186,6 +213,9 @@ class _TodayScreenState extends State<TodayScreen> {
             rental: r,
             showCloth: true,
             onReturn: () => _return(r),
+            onAmounts: () async {
+              if (await editAmountsFlow(context, r)) widget.onChanged();
+            },
             onCancel: () async {
               if (await cancelBookingAndShowWaitlist(context, r)) widget.onChanged();
             },

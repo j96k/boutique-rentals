@@ -32,6 +32,7 @@ class Rental {
     required this.depositKept,
     required this.depositStatus,
     this.depositNote,
+    this.depositSettledAt,
     this.notes,
     required this.status,
   });
@@ -54,6 +55,7 @@ class Rental {
   final double depositKept; // kept for damage etc.
   final String depositStatus; // none | held | refunded | part_kept
   final String? depositNote;
+  final DateTime? depositSettledAt; // when the deposit was given back
   final String? notes;
   final String status; // booked | on_rent | overdue | returned
 
@@ -78,6 +80,7 @@ class Rental {
         depositKept: _num(j['deposit_kept']),
         depositStatus: j['deposit_status'] ?? 'none',
         depositNote: j['deposit_note'],
+        depositSettledAt: _date(j['deposit_settled_at']),
         notes: j['notes'],
         status: j['status'],
       );
@@ -337,4 +340,48 @@ class Earnings {
           .toList(),
     );
   }
+}
+
+/// Everyone booked with the same phone (or the same name, without a phone).
+class CustomerSummary {
+  CustomerSummary.fromJson(Map<String, dynamic> j)
+      : key = j['key'],
+        name = j['name'],
+        phone = j['phone'],
+        bookings = j['bookings'],
+        lastBookingAt = _date(j['last_booking_at']),
+        rentTotal = _num(j['rent_total']),
+        rentPaid = _num(j['rent_paid']),
+        balanceDue = _num(j['balance_due']),
+        depositsHeld = _num(j['deposits_held']),
+        depositsReturned = _num(j['deposits_returned']),
+        depositsKept = _num(j['deposits_kept']),
+        inquiries = j['inquiries'];
+
+  final String key;
+  final String name;
+  final String? phone;
+  final int bookings;
+  final DateTime? lastBookingAt;
+  final double rentTotal, rentPaid, balanceDue, depositsHeld, depositsReturned, depositsKept;
+  final int inquiries;
+}
+
+class CustomerDetail extends CustomerSummary {
+  CustomerDetail.fromJson(super.j)
+      : otherNames = List<String>.from(j['other_names'] as List),
+        rentals = (j['rentals'] as List).map((e) => Rental.fromJson(e)).toList(),
+        waitlist = (j['waitlist'] as List).map((e) => Inquiry.fromJson(e)).toList(),
+        super.fromJson();
+
+  final List<String> otherNames;
+  final List<Rental> rentals; // newest first
+  final List<Inquiry> waitlist;
+}
+
+/// Same rule as the server: by the last 10 phone digits, else by name.
+String customerKey(String name, String? phone) {
+  var digits = (phone ?? '').replaceAll(RegExp(r'[^0-9]'), '');
+  if (digits.length > 10) digits = digits.substring(digits.length - 10);
+  return digits.length >= 6 ? 'p:$digits' : 'n:${name.toLowerCase().trim().split(RegExp(r'\s+')).join(' ')}';
 }

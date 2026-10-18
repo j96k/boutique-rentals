@@ -272,7 +272,10 @@ class _Header extends StatelessWidget {
         if (c.otherNames.isNotEmpty)
           Text('also booked as: ${c.otherNames.join(', ')}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
         const SizedBox(height: 4),
-        Text(c.phone ?? 'No phone number saved', style: const TextStyle(color: AppColors.goldSoft)),
+        if (c.phone != null)
+          CopyText(c.phone!, what: 'Phone number', icon: Icons.phone_rounded, light: true, fontSize: 15)
+        else
+          const Text('No phone number saved', style: TextStyle(color: AppColors.goldSoft)),
         if (c.depositsHeld > 0) ...[
           const SizedBox(height: 10),
           Container(

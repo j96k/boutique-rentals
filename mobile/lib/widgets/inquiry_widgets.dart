@@ -150,6 +150,9 @@ class InquiryCard extends StatelessWidget {
                   ]),
                   const SizedBox(height: 2),
                   Text(inquiryDates(i), style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  if (i.phone != null) CopyText(i.phone!, what: 'Phone number', icon: Icons.phone_rounded),
+                  if (i.email != null) CopyText(i.email!, what: 'Gmail', icon: Icons.mail_rounded),
+                  if (i.instagram != null) CopyText(i.instagram!, what: 'Instagram ID', icon: Icons.camera_alt_rounded),
                 ]),
               ),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [

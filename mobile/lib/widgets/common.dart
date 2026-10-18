@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../api/api_client.dart';
 import '../theme.dart';
+import '../utils.dart';
 
 /// Network image of a cloth with a tasteful placeholder.
 class ClothImage extends StatelessWidget {
@@ -149,4 +151,48 @@ class SectionTitle extends StatelessWidget {
           ?trailing,
         ]),
       );
+}
+
+/// A phone number / Gmail / Instagram ID you can copy with one tap
+/// (then paste it into the dialer, WhatsApp, Gmail or Instagram).
+class CopyText extends StatelessWidget {
+  const CopyText(this.value, {super.key, required this.what, this.icon, this.light = false, this.fontSize = 13});
+  final String value;
+  final String what; // "Phone number", "Gmail", "Instagram ID" — for the "copied" message
+  final IconData? icon;
+  final bool light; // on a dark background
+  final double fontSize;
+
+  Future<void> _copy(BuildContext context) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: value));
+      if (context.mounted) showSnack(context, '$what copied: $value');
+    } catch (_) {
+      // Some browsers block copying; show the value so it can be typed.
+      if (context.mounted) showSnack(context, "Couldn't copy here — $what: $value", error: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final color = light ? AppColors.goldSoft : AppColors.muted;
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      onTap: () => _copy(context),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3, horizontal: 2),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          if (icon != null) ...[Icon(icon, size: fontSize + 2, color: color), const SizedBox(width: 4)],
+          Flexible(
+            child: Text(value, overflow: TextOverflow.ellipsis, style: TextStyle(color: color, fontSize: fontSize)),
+          ),
+          const SizedBox(width: 6),
+          Tooltip(
+            message: 'Copy',
+            child: Icon(Icons.copy_rounded, size: fontSize + 1, color: light ? Colors.white : AppColors.plumSoft),
+          ),
+        ]),
+      ),
+    );
+  }
 }

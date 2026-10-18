@@ -109,7 +109,7 @@ class _RentalJourneyCardState extends State<RentalJourneyCard> {
                   ]),
                 ),
                 if (r.customerPhone != null && r.customerPhone!.isNotEmpty)
-                  Text(r.customerPhone!, style: const TextStyle(color: AppColors.muted, fontSize: 13)),
+                  CopyText(r.customerPhone!, what: 'Phone number'),
               ]),
             ),
             StatusChip(status, dense: true),

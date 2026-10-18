@@ -108,6 +108,8 @@ class Api {
       _send(() => http.post(_uri(path), headers: _headers, body: body == null ? null : jsonEncode(body)));
   Future<dynamic> put(String path, Object body) =>
       _send(() => http.put(_uri(path), headers: _headers, body: jsonEncode(body)));
+  Future<dynamic> patch(String path, Object body) =>
+      _send(() => http.patch(_uri(path), headers: _headers, body: jsonEncode(body)));
   Future<dynamic> delete(String path) => _send(() => http.delete(_uri(path), headers: _headers));
 
   Future<dynamic> multipart(String method, String path, Map<String, String> fields,
@@ -186,7 +188,17 @@ class Api {
   Future<Rental> createRental(int clothId, Map<String, dynamic> body) async =>
       Rental.fromJson(await post('/cloths/$clothId/rentals', body));
   Future<Rental> updateRental(int id, Map<String, dynamic> body) async => Rental.fromJson(await put('/rentals/$id', body));
-  Future<Rental> markReturned(int id) async => Rental.fromJson(await post('/rentals/$id/return'));
+  /// [depositReturned] null = decide about the deposit later.
+  Future<Rental> markReturned(int id, {bool collectBalance = true, double? depositReturned, String? depositNote}) async =>
+      Rental.fromJson(await post('/rentals/$id/return', {
+        'collect_balance': collectBalance,
+        'deposit_returned': depositReturned,
+        'deposit_note': depositNote,
+      }));
+  Future<Rental> settleDeposit(int id, double returned, String? note) async =>
+      Rental.fromJson(await post('/rentals/$id/deposit', {'deposit_returned': returned, 'deposit_note': note}));
+  Future<Earnings> earnings(DateTime start, DateTime end) async =>
+      Earnings.fromJson(await get('/earnings', {'start': apiDate(start), 'end': apiDate(end)}));
   Future<void> deleteRental(int id) => delete('/rentals/$id');
 
   Future<List<Rental>> rentals(DateTime start, DateTime end) async {
@@ -196,7 +208,31 @@ class Api {
 
   Future<Dashboard> dashboard() async => Dashboard.fromJson(await get('/dashboard'));
 
+  // ---------------- Inquiries (waitlist) ----------------
+  List<Inquiry> _inquiries(dynamic list) => (list as List).map((e) => Inquiry.fromJson(e)).toList();
+
+  Future<List<Inquiry>> inquiries(int clothId) async => _inquiries(await get('/cloths/$clothId/inquiries'));
+  Future<Inquiry> createInquiry(int clothId, Map<String, dynamic> body) async =>
+      Inquiry.fromJson(await post('/cloths/$clothId/inquiries', body));
+  Future<Inquiry> updateInquiry(int id, Map<String, dynamic> body) async =>
+      Inquiry.fromJson(await put('/inquiries/$id', body));
+  Future<Inquiry> setInquiryStatus(int id, String status) async =>
+      Inquiry.fromJson(await patch('/inquiries/$id/status', {'status': status}));
+  Future<void> deleteInquiry(int id) => delete('/inquiries/$id');
+
+  /// People who want [clothId] for (part of) start..end — after a cancellation or early return.
+  Future<List<Inquiry>> matchingInquiries(int clothId, DateTime start, DateTime end) async =>
+      _inquiries(await get('/inquiries/matching', {'cloth_id': '$clothId', 'start': apiDate(start), 'end': apiDate(end)}));
+
+  Future<List<Inquiry>> readyInquiries() async => _inquiries(await get('/inquiries/ready'));
+
   // ---------------- Customer (no login) ----------------
+  Future<String> publicNotifyMe(String boutique, String code, Map<String, dynamic> body) async {
+    final j = await post(
+        '/public/${Uri.encodeComponent(boutique.trim())}/cloths/${Uri.encodeComponent(code.trim())}/inquiries', body);
+    return j['message'] as String;
+  }
+
   Future<PublicCloth> publicCloth(String boutique, String code) async => PublicCloth.fromJson(
       await get('/public/${Uri.encodeComponent(boutique.trim())}/cloths/${Uri.encodeComponent(code.trim())}'));
 }

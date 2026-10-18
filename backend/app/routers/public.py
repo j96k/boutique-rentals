@@ -7,9 +7,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from ..database import get_db
-from ..models import Cloth, User
-from ..schemas import BusyRange, PublicClothOut
+from ..models import Cloth, Inquiry, User
+from ..schemas import BusyRange, InquiryIn, PublicClothOut
 from ..serializers import image_url
+from .inquiries import apply_inquiry
 
 router = APIRouter(prefix="/public", tags=["Customer (no login)"])
 
@@ -42,3 +43,19 @@ def check_availability(boutique: str, cloth_code: str, db: Session = Depends(get
         available_now=not any(r.start_at <= now for r in busy),
         busy=[BusyRange(start_at=r.start_at, end_at=r.end_at) for r in busy],
     )
+
+
+@router.post("/{boutique}/cloths/{cloth_code}/inquiries")
+def notify_me(boutique: str, cloth_code: str, body: InquiryIn, db: Session = Depends(get_db)):
+    """A customer asks to be contacted if this cloth frees up (adds them to the boutique's waitlist)."""
+    owner = db.scalar(select(User).where(User.username == boutique.lower().strip()))
+    cloth = owner and db.scalar(
+        select(Cloth).where(Cloth.owner_id == owner.id, Cloth.cloth_code == cloth_code.strip().upper())
+    )
+    if not cloth:
+        raise HTTPException(404, "Cloth not found")
+    inq = Inquiry(cloth_id=cloth.id, source="customer", status="waiting")
+    apply_inquiry(inq, body)
+    db.add(inq)
+    db.commit()
+    return {"ok": True, "message": f"Thank you! {owner.boutique_name} will contact you if {cloth.cloth_code} becomes free."}

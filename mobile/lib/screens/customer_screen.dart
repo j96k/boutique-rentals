@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../utils.dart';
 import '../widgets/booking_calendar.dart';
 import '../widgets/common.dart';
+import 'inquiry_form_screen.dart';
 import 'scan_screen.dart';
 
 /// No-login screen for customers: "Is this dress free on my wedding date?"
@@ -197,6 +198,25 @@ class _CustomerScreenState extends State<CustomerScreen> {
                 fontSize: 16, fontWeight: FontWeight.w800, color: dayBusy ? AppColors.overdue : AppColors.available),
           ),
         ),
+      // Booked? Customers can join the waitlist — the boutique contacts them if it frees up.
+      if (c.busy.isNotEmpty) ...[
+        const SizedBox(height: 16),
+        OutlinedButton.icon(
+          icon: const Icon(Icons.notifications_active_rounded),
+          label: Text(dayBusy ? 'Notify me if ${fmtShort(_day!)} frees up' : 'Booked on my date? Notify me'),
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => InquiryFormScreen(
+                publicBoutique: _boutique.text.trim(),
+                publicClothCode: c.code,
+                initialFrom: dayBusy ? dayOnly(_day!) : null,
+                initialTo: dayBusy ? DateTime(_day!.year, _day!.month, _day!.day, 23, 59) : null,
+              ),
+            ),
+          ),
+        ),
+      ],
     ];
   }
 }

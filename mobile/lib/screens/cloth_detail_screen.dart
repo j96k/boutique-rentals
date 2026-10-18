@@ -7,8 +7,11 @@ import '../theme.dart';
 import '../utils.dart';
 import '../widgets/booking_calendar.dart';
 import '../widgets/common.dart';
+import '../widgets/inquiry_widgets.dart';
 import '../widgets/rental_journey.dart';
+import '../widgets/return_sheet.dart';
 import 'cloth_form_screen.dart';
+import 'inquiry_form_screen.dart';
 import 'rental_form_screen.dart';
 
 class ClothDetailScreen extends StatefulWidget {
@@ -22,10 +25,38 @@ class ClothDetailScreen extends StatefulWidget {
 class _ClothDetailScreenState extends State<ClothDetailScreen> {
   late Future<Cloth> _future = Api.instance.cloth(widget.clothId);
   DateTime? _selectedDay;
+  List<Inquiry>? _inquiries;
+  bool _showClosed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadInquiries();
+  }
+
+  Future<void> _loadInquiries() async {
+    try {
+      final list = await Api.instance.inquiries(widget.clothId);
+      if (mounted) setState(() => _inquiries = list);
+    } on ApiException catch (_) {
+      if (mounted) setState(() => _inquiries = []);
+    }
+  }
 
   Future<void> _reload() async {
     setState(() => _future = Api.instance.cloth(widget.clothId));
+    _loadInquiries();
     await _future;
+  }
+
+  Future<void> _cancel(Rental r) async {
+    if (await cancelBookingAndShowWaitlist(context, r)) _reload();
+  }
+
+  Future<void> _addInquiry() async {
+    final saved = await Navigator.push(
+        context, MaterialPageRoute(builder: (_) => InquiryFormScreen(clothId: widget.clothId)));
+    if (saved != null) _loadInquiries();
   }
 
   Future<void> _newRental(Cloth c, {Rental? edit, DateTime? startDay}) async {
@@ -37,14 +68,7 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
   }
 
   Future<void> _return(Rental r) async {
-    if (!await confirm(context, 'Mark returned?', 'Did ${r.customerName} return this cloth?')) return;
-    try {
-      await Api.instance.markReturned(r.id);
-      if (mounted) showSnack(context, 'Marked as returned ✓');
-      _reload();
-    } on ApiException catch (e) {
-      if (mounted) showSnack(context, e.message, error: true);
-    }
+    if (await markReturnedFlow(context, r)) _reload();
   }
 
   Future<void> _delete(Cloth c) async {
@@ -78,6 +102,48 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
         actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
       ),
     );
+  }
+
+  List<Widget> _inquirySection() {
+    final all = _inquiries;
+    final open = all?.where((i) => i.isOpen).toList() ?? [];
+    final closed = all?.where((i) => !i.isOpen).toList() ?? [];
+    return [
+      SectionTitle(
+        'Inquiries / Waitlist${open.isEmpty ? '' : ' (${open.length})'}',
+        trailing: TextButton.icon(
+          onPressed: _addInquiry,
+          icon: const Icon(Icons.person_add_alt_1_rounded, size: 18),
+          label: const Text('Add'),
+        ),
+      ),
+      if (all == null)
+        const Padding(padding: EdgeInsets.all(12), child: Center(child: CircularProgressIndicator()))
+      else if (open.isEmpty)
+        Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.line)),
+          child: const Text(
+            "Nobody waiting. Add people who ask for this outfit when it's booked — "
+            "if a booking is cancelled, you'll see them here, highest offer first.",
+            style: TextStyle(color: AppColors.muted),
+          ),
+        ),
+      ...open.map((i) => Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: InquiryCard(inquiry: i, onChanged: _reload),
+          )),
+      if (closed.isNotEmpty)
+        TextButton(
+          onPressed: () => setState(() => _showClosed = !_showClosed),
+          child: Text(_showClosed ? 'Hide closed inquiries' : 'Show ${closed.length} closed (booked / not interested)'),
+        ),
+      if (_showClosed)
+        ...closed.map((i) => Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: InquiryCard(inquiry: i, onChanged: _reload),
+            )),
+    ];
   }
 
   @override
@@ -220,7 +286,10 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
                 ...onDay.map((r) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: RentalJourneyCard(
-                          rental: r, onReturn: () => _return(r), onEdit: () => _newRental(c, edit: r)),
+                          rental: r,
+                          onReturn: () => _return(r),
+                          onEdit: () => _newRental(c, edit: r),
+                          onCancel: () => _cancel(r)),
                     )),
               ],
               if (upcoming.isNotEmpty) ...[
@@ -228,12 +297,16 @@ class _ClothDetailScreenState extends State<ClothDetailScreen> {
                 ...upcoming.map((r) => Padding(
                       padding: const EdgeInsets.only(bottom: 12),
                       child: RentalJourneyCard(
-                          rental: r, onReturn: () => _return(r), onEdit: () => _newRental(c, edit: r)),
+                          rental: r,
+                          onReturn: () => _return(r),
+                          onEdit: () => _newRental(c, edit: r),
+                          onCancel: () => _cancel(r)),
                     )),
               ],
+              ..._inquirySection(),
               if (history.isNotEmpty) ...[
                 SectionTitle('History', trailing: Text('${history.length} rentals')),
-                ...history.map((r) => _HistoryTile(r)),
+                ...history.map((r) => _HistoryTile(r, onChanged: _reload)),
               ],
             ]),
           ),
@@ -293,8 +366,9 @@ class _AvailableBanner extends StatelessWidget {
 }
 
 class _HistoryTile extends StatelessWidget {
-  const _HistoryTile(this.r);
+  const _HistoryTile(this.r, {required this.onChanged});
   final Rental r;
+  final VoidCallback onChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -302,17 +376,35 @@ class _HistoryTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Card(
-        child: ListTile(
-          leading: CircleAvatar(
-            backgroundColor: AppColors.goldSoft,
-            child: Text(r.customerName.characters.first.toUpperCase(),
-                style: const TextStyle(color: AppColors.plum, fontWeight: FontWeight.w800)),
-          ),
-          title: Text(r.customerName, style: const TextStyle(fontWeight: FontWeight.w700)),
-          subtitle: Text('${fmtShort(r.startAt)} → ${fmtShort(r.endAt)}  •  returned ${fmtShort(r.returnedAt!)}'),
-          trailing: late
-              ? const Tooltip(message: 'Returned late', child: Icon(Icons.schedule_rounded, color: AppColors.overdue))
-              : const Icon(Icons.check_rounded, color: AppColors.available),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            ListTile(
+              leading: CircleAvatar(
+                backgroundColor: AppColors.goldSoft,
+                child: Text(r.customerName.characters.first.toUpperCase(),
+                    style: const TextStyle(color: AppColors.plum, fontWeight: FontWeight.w800)),
+              ),
+              title: Text(r.customerName, style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text('${fmtShort(r.startAt)} → ${fmtShort(r.endAt)}  •  returned ${fmtShort(r.returnedAt!)}'),
+              trailing: late
+                  ? const Tooltip(message: 'Returned late', child: Icon(Icons.schedule_rounded, color: AppColors.overdue))
+                  : const Icon(Icons.check_rounded, color: AppColors.available),
+            ),
+            if (r.rentAmount > 0 || r.depositAmount > 0)
+              Padding(padding: const EdgeInsets.symmetric(horizontal: 16), child: MoneyLine(rental: r)),
+            if (r.depositStatus == 'held')
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                child: OutlinedButton.icon(
+                  onPressed: () async {
+                    if (await settleDepositFlow(context, r)) onChanged();
+                  },
+                  icon: const Icon(Icons.shield_rounded, size: 18),
+                  label: Text('Settle deposit ${fmtMoney(r.depositAmount)}'),
+                ),
+              ),
+          ]),
         ),
       ),
     );

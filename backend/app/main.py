@@ -6,11 +6,12 @@ from sqlalchemy.orm import Session
 
 from . import models  # noqa: F401  (registers tables)
 from .config import BASE_DIR, settings
-from .database import Base, engine, get_db
+from .database import Base, engine, get_db, upgrade_schema
 from .models import StoredImage
-from .routers import auth, cloths, public, rentals
+from .routers import auth, cloths, earnings, inquiries, public, rentals
 
 Base.metadata.create_all(bind=engine)  # creates tables on first run
+upgrade_schema()  # adds columns introduced later (keeps existing data)
 settings.upload_dir.mkdir(parents=True, exist_ok=True)
 
 app = FastAPI(title="Rental Cloth Management API", version="1.0.0")
@@ -20,6 +21,8 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 app.include_router(auth.router)
 app.include_router(cloths.router)
 app.include_router(rentals.router)
+app.include_router(inquiries.router)
+app.include_router(earnings.router)
 app.include_router(public.router)
 
 

@@ -5,10 +5,13 @@ import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/common.dart';
+import '../widgets/inquiry_widgets.dart';
 import '../widgets/rental_journey.dart';
+import '../widgets/return_sheet.dart';
 import 'cloth_detail_screen.dart';
 import 'find_cloth.dart';
 import 'scan_screen.dart';
+import 'waitlist_screen.dart';
 
 class TodayScreen extends StatefulWidget {
   const TodayScreen({super.key, required this.onChanged, required this.onOpenWardrobe});
@@ -39,14 +42,7 @@ class _TodayScreenState extends State<TodayScreen> {
   }
 
   Future<void> _return(Rental r) async {
-    if (!await confirm(context, 'Mark returned?', '${r.clothName} (${r.clothCode}) from ${r.customerName}')) return;
-    try {
-      await Api.instance.markReturned(r.id);
-      if (mounted) showSnack(context, 'Marked as returned ✓');
-      widget.onChanged();
-    } on ApiException catch (e) {
-      if (mounted) showSnack(context, e.message, error: true);
-    }
+    if (await markReturnedFlow(context, r)) widget.onChanged();
   }
 
   String get _greeting {
@@ -155,6 +151,16 @@ class _TodayScreenState extends State<TodayScreen> {
             action: SizedBox(
                 width: 200, child: FilledButton(onPressed: widget.onOpenWardrobe, child: const Text('Go to Wardrobe'))),
           ),
+        if (d.waitlistReady.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _WaitlistReadyCard(
+            people: d.waitlistReady,
+            onTap: () async {
+              await Navigator.push(context, MaterialPageRoute(builder: (_) => const WaitlistScreen()));
+              widget.onChanged();
+            },
+          ),
+        ],
         if (d.overdueList.isNotEmpty) ...[
           SectionTitle('Overdue — follow up', trailing: Text('${d.overdueList.length}')),
           ...d.overdueList.map(_card),
@@ -176,7 +182,14 @@ class _TodayScreenState extends State<TodayScreen> {
             await Navigator.push(context, MaterialPageRoute(builder: (_) => ClothDetailScreen(clothId: r.clothId)));
             widget.onChanged();
           },
-          child: RentalJourneyCard(rental: r, showCloth: true, onReturn: () => _return(r)),
+          child: RentalJourneyCard(
+            rental: r,
+            showCloth: true,
+            onReturn: () => _return(r),
+            onCancel: () async {
+              if (await cancelBookingAndShowWaitlist(context, r)) widget.onChanged();
+            },
+          ),
         ),
       );
 }
@@ -217,4 +230,52 @@ class _Nothing extends StatelessWidget {
         ),
         child: Text(text, textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
       );
+}
+
+/// "N people are waiting for clothes that are free for their dates" — the money-maker card.
+class _WaitlistReadyCard extends StatelessWidget {
+  const _WaitlistReadyCard({required this.people, required this.onTap});
+  final List<Inquiry> people;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final clothes = people.map((i) => i.clothCode).toSet();
+    final best = people.map((i) => i.offeredAmount).fold<double>(0, (a, b) => b > a ? b : a);
+    return Material(
+      borderRadius: BorderRadius.circular(20),
+      color: AppColors.goldSoft,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: const BoxDecoration(color: AppColors.gold, shape: BoxShape.circle),
+              child: const Icon(Icons.campaign_rounded, color: AppColors.plumDeep),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text(
+                  '${people.length} ${people.length == 1 ? 'person is' : 'people are'} waiting — '
+                  '${clothes.length} ${clothes.length == 1 ? 'cloth is' : 'clothes are'} free for them',
+                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.plumDeep),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${clothes.take(4).join(', ')}${clothes.length > 4 ? '…' : ''}'
+                  '${best > 0 ? '  •  best offer ${fmtMoney(best)}' : ''}',
+                  style: const TextStyle(color: AppColors.plumSoft, fontSize: 13),
+                ),
+              ]),
+            ),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.plum),
+          ]),
+        ),
+      ),
+    );
+  }
 }

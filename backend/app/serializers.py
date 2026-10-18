@@ -2,8 +2,8 @@
 
 from datetime import datetime
 
-from .models import Cloth, Rental
-from .schemas import ClothDetailOut, ClothOut, RentalOut
+from .models import Cloth, Inquiry, Rental
+from .schemas import ClothDetailOut, ClothOut, InquiryOut, RentalOut
 
 
 _CONTENT_TYPES = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp", ".heic": "image/heic"}
@@ -30,7 +30,14 @@ def rental_out(r: Rental, now: datetime) -> RentalOut:
         start_at=r.start_at,
         end_at=r.end_at,
         returned_at=r.returned_at,
+        rent_amount=float(r.rent_amount or 0),
         advance_paid=float(r.advance_paid or 0),
+        balance_due=r.balance_due,
+        deposit_amount=float(r.deposit_amount or 0),
+        deposit_returned=None if r.deposit_returned is None else float(r.deposit_returned),
+        deposit_kept=r.deposit_kept,
+        deposit_status=r.deposit_status,
+        deposit_note=r.deposit_note,
         notes=r.notes,
         status=r.status(now),
     )
@@ -58,3 +65,24 @@ def cloth_out(c: Cloth, now: datetime, detail: bool = False) -> ClothOut:
     if detail:
         return ClothDetailOut(**data, rentals=[rental_out(r, now) for r in c.rentals])
     return ClothOut(**data)
+
+
+def inquiry_out(i: Inquiry) -> InquiryOut:
+    return InquiryOut(
+        id=i.id,
+        cloth_id=i.cloth_id,
+        cloth_code=i.cloth.cloth_code,
+        cloth_name=i.cloth.name,
+        cloth_image=image_url(i.cloth),
+        name=i.name,
+        phone=i.phone,
+        email=i.email,
+        instagram=i.instagram,
+        offered_amount=float(i.offered_amount or 0),
+        wanted_from=i.wanted_from,
+        wanted_to=i.wanted_to,
+        notes=i.notes,
+        status=i.status,
+        source=i.source,
+        created_at=i.created_at,
+    )

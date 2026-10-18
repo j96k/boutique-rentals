@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'calendar_screen.dart';
+import 'earnings_screen.dart';
 import 'profile_screen.dart';
 import 'today_screen.dart';
 import 'wardrobe_screen.dart';
@@ -25,6 +26,7 @@ class _HomeShellState extends State<HomeShell> {
       TodayScreen(key: ValueKey('t$_version'), onChanged: _changed, onOpenWardrobe: () => setState(() => _tab = 1)),
       WardrobeScreen(key: ValueKey('w$_version'), onChanged: _changed),
       CalendarScreen(key: ValueKey('c$_version'), onChanged: _changed),
+      EarningsScreen(key: ValueKey('e$_version')),
       const ProfileScreen(),
     ];
     return Scaffold(
@@ -38,6 +40,10 @@ class _HomeShellState extends State<HomeShell> {
               icon: Icon(Icons.checkroom_outlined), selectedIcon: Icon(Icons.checkroom_rounded), label: 'Wardrobe'),
           NavigationDestination(
               icon: Icon(Icons.calendar_month_outlined), selectedIcon: Icon(Icons.calendar_month_rounded), label: 'Calendar'),
+          NavigationDestination(
+              icon: Icon(Icons.account_balance_wallet_outlined),
+              selectedIcon: Icon(Icons.account_balance_wallet_rounded),
+              label: 'Earnings'),
           NavigationDestination(icon: Icon(Icons.person_outline_rounded), selectedIcon: Icon(Icons.person_rounded), label: 'Profile'),
         ],
       ),

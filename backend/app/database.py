@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine, event
+from sqlalchemy import create_engine, event, inspect, text
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 from .config import settings
@@ -60,3 +60,34 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# Columns added after the first version. create_all() only makes missing *tables*,
+# so existing databases (your PC's SQLite, Neon online) get these added here.
+_NEW_COLUMNS = {
+    "rentals": [
+        ("rent_amount", "NUMERIC(10,2) DEFAULT 0"),
+        ("deposit_amount", "NUMERIC(10,2) DEFAULT 0"),
+        ("deposit_returned", "NUMERIC(10,2)"),
+        ("deposit_note", "TEXT"),
+    ],
+}
+
+
+def upgrade_schema() -> None:
+    insp = inspect(engine)
+    with engine.begin() as conn:
+        for table, columns in _NEW_COLUMNS.items():
+            existing = {c["name"] for c in insp.get_columns(table)}
+            for name, ddl in columns:
+                if name in existing:
+                    continue
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}"))
+                if (table, name) == ("rentals", "rent_amount"):
+                    # Old bookings had no rent amount: use the cloth's price.
+                    conn.execute(text(
+                        "UPDATE rentals SET rent_amount = "
+                        "(SELECT rent_price FROM cloths WHERE cloths.id = rentals.cloth_id)"
+                    ))
+        # Rent can't be less than what was already paid (old bookings with a ₹0 cloth price).
+        conn.execute(text("UPDATE rentals SET rent_amount = advance_paid WHERE rent_amount < advance_paid"))

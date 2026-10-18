@@ -5,13 +5,16 @@ import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/common.dart';
+import '../widgets/inquiry_widgets.dart';
 
 /// Give a cloth on rent (or book it for later). Pops `true` when saved.
+/// With [fromInquiry], the form is filled from a waitlist inquiry, which is marked "booked" on save.
 class RentalFormScreen extends StatefulWidget {
-  const RentalFormScreen({super.key, required this.cloth, this.rental, this.startDay});
+  const RentalFormScreen({super.key, required this.cloth, this.rental, this.startDay, this.fromInquiry});
   final Cloth cloth;
   final Rental? rental;
   final DateTime? startDay;
+  final Inquiry? fromInquiry;
 
   @override
   State<RentalFormScreen> createState() => _RentalFormScreenState();
@@ -19,11 +22,12 @@ class RentalFormScreen extends StatefulWidget {
 
 class _RentalFormScreenState extends State<RentalFormScreen> {
   final _form = GlobalKey<FormState>();
-  late final _name = TextEditingController(text: widget.rental?.customerName ?? '');
-  late final _phone = TextEditingController(text: widget.rental?.customerPhone ?? '');
-  late final _advance = TextEditingController(
-      text: (widget.rental?.advancePaid ?? 0) == 0 ? '' : widget.rental!.advancePaid.toStringAsFixed(0));
-  late final _notes = TextEditingController(text: widget.rental?.notes ?? '');
+  late final _name = TextEditingController(text: widget.rental?.customerName ?? widget.fromInquiry?.name ?? '');
+  late final _phone = TextEditingController(text: widget.rental?.customerPhone ?? widget.fromInquiry?.phone ?? '');
+  late final _rent = TextEditingController(text: _money(_defaultRent()));
+  late final _advance = TextEditingController(text: _money(widget.rental?.advancePaid ?? 0));
+  late final _deposit = TextEditingController(text: _money(widget.rental?.depositAmount ?? 0));
+  late final _notes = TextEditingController(text: widget.rental?.notes ?? _inquiryNote());
   late DateTime _start;
   late DateTime _end;
   bool _busy = false;
@@ -32,9 +36,15 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
   void initState() {
     super.initState();
     final now = DateTime.now();
+    final inq = widget.fromInquiry;
     if (widget.rental != null) {
       _start = widget.rental!.startAt;
       _end = widget.rental!.endAt;
+    } else if (inq != null && inq.hasDates) {
+      // Their wanted days, 10 AM out → 8 PM back (adjust if needed).
+      _start = DateTime(inq.wantedFrom!.year, inq.wantedFrom!.month, inq.wantedFrom!.day, 10);
+      _end = DateTime(inq.wantedTo!.year, inq.wantedTo!.month, inq.wantedTo!.day, 20);
+      if (!_end.isAfter(_start)) _end = _start.add(const Duration(days: 1));
     } else {
       final d = widget.startDay;
       // Starting today → now (rounded); a future day → 10:00 AM.
@@ -46,6 +56,30 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
   }
 
   bool isSameDayAs(DateTime a, DateTime b) => dayOnly(a) == dayOnly(b);
+
+  static String _money(double v) => v == 0 ? '' : v.toStringAsFixed(v % 1 == 0 ? 0 : 2);
+  double _val(TextEditingController c) => double.tryParse(c.text.trim()) ?? 0;
+
+  /// Existing booking's rent, else the waitlist offer, else the cloth's price.
+  double _defaultRent() {
+    if (widget.rental != null) return widget.rental!.rentAmount;
+    final offer = widget.fromInquiry?.offeredAmount ?? 0;
+    return offer > 0 ? offer : widget.cloth.rentPrice;
+  }
+
+  String? _numberCheck(String? v) =>
+      (v ?? '').trim().isNotEmpty && double.tryParse(v!.trim()) == null ? 'Number only' : null;
+
+  String _inquiryNote() {
+    final i = widget.fromInquiry;
+    if (i == null) return '';
+    return [
+      'From waitlist.',
+      if (i.instagram != null) 'Instagram: @${i.instagram}.',
+      if (i.email != null) 'Gmail: ${i.email}.',
+      if (i.notes?.isNotEmpty ?? false) i.notes!,
+    ].join(' ');
+  }
 
   Future<DateTime?> _pickDateTime(DateTime initial) async {
     final d = await showDatePicker(
@@ -72,12 +106,19 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
       'customer_phone': _phone.text.trim().isEmpty ? null : _phone.text.trim(),
       'start_at': apiDate(_start),
       'end_at': apiDate(_end),
-      'advance_paid': double.tryParse(_advance.text.trim()) ?? 0,
+      'rent_amount': _val(_rent),
+      'advance_paid': _val(_advance),
+      'deposit_amount': _val(_deposit),
       'notes': _notes.text.trim().isEmpty ? null : _notes.text.trim(),
     };
     try {
       if (widget.rental == null) {
         await Api.instance.createRental(widget.cloth.id, body);
+        if (widget.fromInquiry != null) {
+          try {
+            await Api.instance.setInquiryStatus(widget.fromInquiry!.id, 'booked');
+          } on ApiException catch (_) {} // the booking itself is saved
+        }
       } else {
         await Api.instance.updateRental(widget.rental!.id, body);
       }
@@ -92,15 +133,7 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
   }
 
   Future<void> _delete() async {
-    if (!await confirm(context, 'Cancel this booking?', 'It will be removed completely.', ok: 'Remove', danger: true)) {
-      return;
-    }
-    try {
-      await Api.instance.deleteRental(widget.rental!.id);
-      if (mounted) Navigator.pop(context, true);
-    } on ApiException catch (e) {
-      if (mounted) showSnack(context, e.message, error: true);
-    }
+    if (await cancelBookingAndShowWaitlist(context, widget.rental!) && mounted) Navigator.pop(context, true);
   }
 
   @override
@@ -109,7 +142,11 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
     final c = widget.cloth;
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.rental == null ? 'Give on rent' : 'Change booking'),
+        title: Text(widget.rental != null
+            ? 'Change booking'
+            : widget.fromInquiry != null
+                ? 'Book for ${widget.fromInquiry!.name}'
+                : 'Give on rent'),
         actions: [
           if (widget.rental != null)
             IconButton(tooltip: 'Cancel booking', onPressed: _delete, icon: const Icon(Icons.delete_outline_rounded)),
@@ -204,11 +241,46 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
             ),
           ),
           const SizedBox(height: 12),
+          const SectionTitle('Payment'),
+          TextFormField(
+            controller: _rent,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            validator: _numberCheck,
+            decoration: const InputDecoration(
+              labelText: 'Rent amount',
+              helperText: 'Agreed rent for this booking',
+              prefixText: '₹ ',
+              prefixIcon: Icon(Icons.sell_rounded),
+            ),
+          ),
+          const SizedBox(height: 12),
           TextFormField(
             controller: _advance,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            decoration: const InputDecoration(labelText: 'Advance / deposit paid', prefixText: '₹ '),
+            onChanged: (_) => setState(() {}),
+            validator: (v) => _numberCheck(v) ?? (_val(_advance) > _val(_rent) ? 'More than the rent amount' : null),
+            decoration: const InputDecoration(
+              labelText: 'Rent paid now (advance)',
+              prefixText: '₹ ',
+              prefixIcon: Icon(Icons.payments_rounded),
+            ),
           ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _deposit,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            onChanged: (_) => setState(() {}),
+            validator: _numberCheck,
+            decoration: const InputDecoration(
+              labelText: 'Security deposit taken',
+              helperText: 'Given back when the cloth returns (you can keep part for damage)',
+              prefixText: '₹ ',
+              prefixIcon: Icon(Icons.shield_rounded),
+            ),
+          ),
+          const SizedBox(height: 12),
+          _PaymentSummary(rent: _val(_rent), paid: _val(_advance), deposit: _val(_deposit)),
           const SizedBox(height: 12),
           TextFormField(
             controller: _notes,
@@ -256,4 +328,35 @@ class _DateTile extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _PaymentSummary extends StatelessWidget {
+  const _PaymentSummary({required this.rent, required this.paid, required this.deposit});
+  final double rent, paid, deposit;
+
+  @override
+  Widget build(BuildContext context) {
+    final due = (rent - paid).clamp(0, double.infinity);
+    Widget row(String label, String value, {bool strong = false}) => Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(children: [
+            Expanded(child: Text(label, style: const TextStyle(color: AppColors.muted))),
+            Text(value, style: TextStyle(fontWeight: strong ? FontWeight.w800 : FontWeight.w600, fontSize: strong ? 16 : 14)),
+          ]),
+        );
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(color: AppColors.goldSoft, borderRadius: BorderRadius.circular(16)),
+      child: Column(children: [
+        row('Rent', fmtMoney(rent)),
+        row('Paid now', fmtMoney(paid)),
+        row('Balance to collect at return', fmtMoney(due), strong: true),
+        if (deposit > 0) ...[
+          const Divider(height: 16),
+          row('Deposit to take now (refundable)', fmtMoney(deposit)),
+          row('Customer pays today', fmtMoney(paid + deposit), strong: true),
+        ],
+      ]),
+    );
+  }
 }

@@ -60,6 +60,8 @@
 	<array>
 		<string>tel</string>
 		<string>whatsapp</string>
+		<string>upi</string>
+		<string>instagram</string>
 	</array>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>

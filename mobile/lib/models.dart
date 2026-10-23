@@ -2,14 +2,19 @@ double _num(dynamic v) => v == null ? 0 : (v as num).toDouble();
 DateTime? _date(dynamic v) => v == null ? null : DateTime.parse(v as String);
 
 class AppUser {
-  AppUser({required this.id, required this.username, required this.boutiqueName, this.phone});
+  AppUser({required this.id, required this.username, required this.boutiqueName, this.phone, this.isAdmin = false});
   final int id;
   final String username;
   final String boutiqueName;
   final String? phone;
+  final bool isAdmin; // sees all ideas & requests
 
-  factory AppUser.fromJson(Map<String, dynamic> j) =>
-      AppUser(id: j['id'], username: j['username'], boutiqueName: j['boutique_name'], phone: j['phone']);
+  factory AppUser.fromJson(Map<String, dynamic> j) => AppUser(
+      id: j['id'],
+      username: j['username'],
+      boutiqueName: j['boutique_name'],
+      phone: j['phone'],
+      isAdmin: j['is_admin'] == true);
 }
 
 class Rental {
@@ -394,4 +399,40 @@ String customerKey(String name, String? phone) {
   var digits = (phone ?? '').replaceAll(RegExp(r'[^0-9]'), '');
   if (digits.length > 10) digits = digits.substring(digits.length - 10);
   return digits.length >= 6 ? 'p:$digits' : 'n:${name.toLowerCase().trim().split(RegExp(r'\s+')).join(' ')}';
+}
+
+class DonateInfo {
+  DonateInfo.fromJson(Map<String, dynamic> j)
+      : upiId = j['upi_id'],
+        name = j['name'] ?? 'Boutique Rentals',
+        url = j['url'];
+  final String? upiId;
+  final String name;
+  final String? url;
+}
+
+/// An idea / change / problem sent to the app maker.
+class FeedbackItem {
+  FeedbackItem.fromJson(Map<String, dynamic> j)
+      : id = j['id'],
+        category = j['category'],
+        message = j['message'],
+        contact = j['contact'],
+        status = j['status'],
+        adminReply = j['admin_reply'],
+        createdAt = _date(j['created_at'])!,
+        updatedAt = _date(j['updated_at']),
+        username = j['username'],
+        boutiqueName = j['boutique_name'],
+        boutiquePhone = j['boutique_phone'];
+
+  final int id;
+  final String category; // feature | change | problem | other
+  final String message;
+  final String? contact;
+  final String status; // new | seen | planned | done | not_planned
+  final String? adminReply;
+  final DateTime createdAt;
+  final DateTime? updatedAt;
+  final String? username, boutiqueName, boutiquePhone; // admin list only
 }

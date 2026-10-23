@@ -12,6 +12,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.8
+      - key: TZ               # boutique's local time (Render servers run in UTC otherwise)
+        value: Asia/Kolkata
       - key: DB_TYPE
         value: postgres
       - key: DATABASE_URL     # paste the connection string from Neon when Render asks
@@ -20,3 +22,9 @@ services:
         generateValue: true
       - key: JWT_EXPIRE_DAYS
         value: "30"
+      - key: DONATE_UPI_ID    # your UPI ID for the donation pop-up, e.g. yourname@okhdfcbank
+        sync: false
+      - key: DONATE_NAME
+        value: Boutique Rentals
+      - key: ADMIN_USERNAMES  # your username: sees all ideas & requests
+        sync: false

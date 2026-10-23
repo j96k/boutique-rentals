@@ -22,6 +22,7 @@ class UserOut(BaseModel):
     username: str
     boutique_name: str
     phone: str | None
+    is_admin: bool = False
 
 
 class TokenOut(BaseModel):
@@ -259,3 +260,41 @@ class CustomerDetail(CustomerSummary):
     other_names: list[str]  # if the same phone was booked under different names
     rentals: list[RentalOut]  # newest first
     waitlist: list[InquiryOut]
+
+
+# ---------- App config (donations) ----------
+class DonateOut(BaseModel):
+    upi_id: str | None
+    name: str
+    url: str | None
+
+
+class AppConfigOut(BaseModel):
+    donate: DonateOut
+
+
+# ---------- Ideas & requests ----------
+class FeedbackIn(BaseModel):
+    category: str = Field(default="feature", pattern=r"^(feature|change|problem|other)$")
+    message: str = Field(min_length=3, max_length=4000)  # any language
+    contact: str | None = Field(default=None, max_length=120)
+
+
+class FeedbackUpdateIn(BaseModel):
+    status: str = Field(pattern=r"^(new|seen|planned|done|not_planned)$")
+    admin_reply: str | None = Field(default=None, max_length=4000)
+
+
+class FeedbackOut(BaseModel):
+    id: int
+    category: str
+    message: str
+    contact: str | None
+    status: str
+    admin_reply: str | None
+    created_at: datetime
+    updated_at: datetime | None
+    # filled for the admin list
+    username: str | None = None
+    boutique_name: str | None = None
+    boutique_phone: str | None = None

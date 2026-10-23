@@ -150,6 +150,13 @@ class Api {
     await _prefs.remove(_kUser);
   }
 
+  /// Refreshes the saved user (e.g. admin status) from the server.
+  Future<void> refreshMe() async {
+    final j = await get('/auth/me');
+    user = AppUser.fromJson(j);
+    await _prefs.setString(_kUser, jsonEncode(j));
+  }
+
   Future<bool> ping() async {
     try {
       await get('/');
@@ -233,6 +240,18 @@ class Api {
       _inquiries(await get('/inquiries/matching', {'cloth_id': '$clothId', 'start': apiDate(start), 'end': apiDate(end)}));
 
   Future<List<Inquiry>> readyInquiries() async => _inquiries(await get('/inquiries/ready'));
+
+  // ---------------- Donations, ideas & requests ----------------
+  Future<DonateInfo> donateInfo() async => DonateInfo.fromJson((await get('/app-config'))['donate']);
+
+  List<FeedbackItem> _feedback(dynamic list) => (list as List).map((e) => FeedbackItem.fromJson(e)).toList();
+  Future<FeedbackItem> sendFeedback(String category, String message, String? contact) async => FeedbackItem.fromJson(
+      await post('/feedback', {'category': category, 'message': message, 'contact': contact}));
+  Future<List<FeedbackItem>> myFeedback() async => _feedback(await get('/feedback/mine'));
+  Future<List<FeedbackItem>> allFeedback({String? status}) async =>
+      _feedback(await get('/admin/feedback', {'status': ?status}));
+  Future<FeedbackItem> answerFeedback(int id, String status, String? reply) async =>
+      FeedbackItem.fromJson(await patch('/admin/feedback/$id', {'status': status, 'admin_reply': reply}));
 
   // ---------------- Customer (no login) ----------------
   Future<String> publicNotifyMe(String boutique, String code, Map<String, dynamic> body) async {

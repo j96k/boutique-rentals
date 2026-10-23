@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../api/api_client.dart';
+import '../widgets/donate_dialog.dart';
+
 import 'calendar_screen.dart';
 import 'earnings_screen.dart';
 import 'profile_screen.dart';
@@ -19,6 +22,19 @@ class _HomeShellState extends State<HomeShell> {
   int _version = 0;
 
   void _changed() => setState(() => _version++);
+
+  @override
+  void initState() {
+    super.initState();
+    // Every app open / login: refresh account info (admin flag), then the "free app — donate?" pop-up.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      try {
+        await Api.instance.refreshMe();
+        if (mounted) setState(() {});
+      } catch (_) {}
+      if (mounted) await showDonateDialog(context);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {

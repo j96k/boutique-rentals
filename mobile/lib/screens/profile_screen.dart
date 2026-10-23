@@ -5,7 +5,9 @@ import '../api/api_client.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/server_settings.dart';
+import '../widgets/donate_dialog.dart';
 import 'customer_screen.dart';
+import 'feedback_screen.dart';
 import 'login_screen.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -65,6 +67,32 @@ class ProfileScreen extends StatelessWidget {
         const SizedBox(height: 16),
         Card(
           child: Column(children: [
+            ListTile(
+              leading: const Icon(Icons.lightbulb_rounded, color: AppColors.gold),
+              title: const Text('Ideas & requests'),
+              subtitle: const Text('Ask for changes or new features — any language'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const FeedbackScreen())),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.favorite_rounded, color: AppColors.overdue),
+              title: const Text('Support us (donate)'),
+              subtitle: const Text('This app is free — donations help us build more'),
+              trailing: const Icon(Icons.chevron_right_rounded),
+              onTap: () => showDonateDialog(context),
+            ),
+            if (u?.isAdmin ?? false) ...[
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.admin_panel_settings_rounded, color: AppColors.plum),
+                title: const Text('All requests (admin)'),
+                subtitle: const Text("Read and answer every boutique's requests"),
+                trailing: const Icon(Icons.chevron_right_rounded),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminFeedbackScreen())),
+              ),
+            ],
+            const Divider(height: 1),
             ListTile(
               leading: const Icon(Icons.person_search_rounded, color: AppColors.plum),
               title: const Text('Open customer view'),

@@ -16,9 +16,15 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(255))
     boutique_name: Mapped[str] = mapped_column(String(120))
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     cloths: Mapped[list["Cloth"]] = relationship(back_populates="owner", cascade="all, delete-orphan")
+
+    @property
+    def is_admin(self) -> bool:
+        from .config import settings
+
+        return self.username.lower() in settings.admins
 
 
 class Cloth(Base):
@@ -34,7 +40,7 @@ class Cloth(Base):
     size: Mapped[str | None] = mapped_column(String(20), nullable=True)
     rent_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0)
     image_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     owner: Mapped[User] = relationship(back_populates="cloths")
     rentals: Mapped[list["Rental"]] = relationship(
@@ -64,7 +70,7 @@ class Rental(Base):
     deposit_settled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # when it was given back
     invoice_token: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)  # secret for the public invoice link
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     cloth: Mapped[Cloth] = relationship(back_populates="rentals")
 
@@ -106,7 +112,7 @@ class StoredImage(Base):
     name: Mapped[str] = mapped_column(String(64), primary_key=True)  # same as Cloth.image_path
     content_type: Mapped[str] = mapped_column(String(40))
     data: Mapped[bytes] = mapped_column(LargeBinary)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
 
 INQUIRY_STATUSES = ("waiting", "contacted", "booked", "not_interested")
@@ -130,7 +136,7 @@ class Inquiry(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="waiting")  # see INQUIRY_STATUSES
     source: Mapped[str] = mapped_column(String(10), default="owner")  # owner | customer
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
 
     cloth: Mapped[Cloth] = relationship(back_populates="inquiries")
 
@@ -139,3 +145,24 @@ class Inquiry(Base):
         if self.wanted_from is None or self.wanted_to is None:
             return True
         return self.wanted_from < end and self.wanted_to > start
+
+
+FEEDBACK_STATUSES = ("new", "seen", "planned", "done", "not_planned")
+
+
+class Feedback(Base):
+    """An idea / change / problem a boutique sends to the app maker (any language)."""
+
+    __tablename__ = "feedback"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    category: Mapped[str] = mapped_column(String(20), default="feature")  # feature | change | problem | other
+    message: Mapped[str] = mapped_column(Text)
+    contact: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    status: Mapped[str] = mapped_column(String(20), default="new")  # see FEEDBACK_STATUSES
+    admin_reply: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now, server_default=func.now())
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    user: Mapped[User] = relationship()

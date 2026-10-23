@@ -26,6 +26,18 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-to-a-long-random-string"
     jwt_expire_days: int = 30
 
+    # --- Donations (shown in a pop-up in the app; leave empty to hide the UPI part) ---
+    donate_upi_id: str = ""  # e.g. yourname@okhdfcbank
+    donate_name: str = "Boutique Rentals"  # name shown in the UPI app
+    donate_url: str = ""  # optional extra link (e.g. Razorpay / Buy Me a Coffee page)
+
+    # Usernames (comma separated) that see the Admin screen for all ideas & requests.
+    admin_usernames: str = ""
+
+    @property
+    def admins(self) -> set[str]:
+        return {u.strip().lower() for u in self.admin_usernames.split(",") if u.strip()}
+
     upload_dir: Path = BASE_DIR / "uploads"
 
     model_config = SettingsConfigDict(env_file=BASE_DIR / ".env", extra="ignore")

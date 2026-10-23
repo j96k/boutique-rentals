@@ -50,6 +50,8 @@ class Rental(Base):
     cloth_id: Mapped[int] = mapped_column(ForeignKey("cloths.id", ondelete="CASCADE"), index=True)
     customer_name: Mapped[str] = mapped_column(String(120))
     customer_phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    customer_email: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    customer_instagram: Mapped[str | None] = mapped_column(String(60), nullable=True)
     start_at: Mapped[datetime] = mapped_column(DateTime, index=True)  # goes out on rent
     end_at: Mapped[datetime] = mapped_column(DateTime, index=True)  # promised return
     returned_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # actually came back
@@ -60,6 +62,7 @@ class Rental(Base):
     deposit_returned: Mapped[float | None] = mapped_column(Numeric(10, 2), nullable=True)  # None = not settled yet
     deposit_note: Mapped[str | None] = mapped_column(Text, nullable=True)  # e.g. why part was kept
     deposit_settled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)  # when it was given back
+    invoice_token: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)  # secret for the public invoice link
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
 

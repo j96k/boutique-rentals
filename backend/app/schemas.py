@@ -34,6 +34,8 @@ class TokenOut(BaseModel):
 class RentalIn(BaseModel):
     customer_name: str = Field(min_length=1, max_length=120)
     customer_phone: str | None = Field(default=None, max_length=20)
+    customer_email: str | None = Field(default=None, max_length=120)
+    customer_instagram: str | None = Field(default=None, max_length=60)
     start_at: datetime
     end_at: datetime
     rent_amount: float | None = Field(default=None, ge=0)  # empty = the cloth's rent price
@@ -45,6 +47,12 @@ class RentalIn(BaseModel):
     def check_dates(self):
         if self.end_at <= self.start_at:
             raise ValueError("Return date/time must be after the rent-out date/time")
+        # Tidy only the fields that were sent (so "not sent" stays distinguishable from "cleared").
+        for f in {"customer_phone", "customer_email", "customer_instagram"} & self.model_fields_set:
+            v = getattr(self, f)
+            setattr(self, f, v.strip() if v and v.strip() else None)
+        if self.customer_instagram:
+            self.customer_instagram = self.customer_instagram.lstrip("@")
         if self.rent_amount is not None and self.advance_paid > self.rent_amount:
             raise ValueError("Paid amount can't be more than the rent amount")
         return self
@@ -71,6 +79,8 @@ class RentalOut(BaseModel):
     cloth_image: str | None
     customer_name: str
     customer_phone: str | None
+    customer_email: str | None
+    customer_instagram: str | None
     start_at: datetime
     end_at: datetime
     returned_at: datetime | None
@@ -232,6 +242,8 @@ class CustomerSummary(BaseModel):
     key: str  # "p:9812345678" (by phone) or "n:priya shah" (no phone)
     name: str
     phone: str | None
+    email: str | None
+    instagram: str | None
     bookings: int
     last_booking_at: datetime | None
     rent_total: float

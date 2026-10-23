@@ -10,6 +10,7 @@ import '../utils.dart';
 import '../widgets/amounts_sheet.dart';
 import '../widgets/common.dart';
 import '../widgets/inquiry_widgets.dart';
+import '../widgets/message_sheet.dart';
 import '../widgets/rental_journey.dart';
 import '../widgets/return_sheet.dart';
 import 'cloth_detail_screen.dart';
@@ -260,7 +261,9 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final digits = (c.phone ?? '').replaceAll(RegExp(r'[^0-9]'), '');
-    final wa = digits.length == 10 ? '91$digits' : digits;
+    // A general message (no booking selected); for a booking's invoice use the ✉ on that booking below.
+    void message(Channel ch) => showMessageSheet(context,
+        name: c.name, phone: c.phone, email: c.email, instagram: c.instagram, channel: ch);
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
@@ -276,6 +279,8 @@ class _Header extends StatelessWidget {
           CopyText(c.phone!, what: 'Phone number', icon: Icons.phone_rounded, light: true, fontSize: 15)
         else
           const Text('No phone number saved', style: TextStyle(color: AppColors.goldSoft)),
+        if (c.email != null) CopyText(c.email!, what: 'Gmail', icon: Icons.mail_rounded, light: true),
+        if (c.instagram != null) CopyText(c.instagram!, what: 'Instagram ID', icon: Icons.camera_alt_rounded, light: true),
         if (c.depositsHeld > 0) ...[
           const SizedBox(height: 10),
           Container(
@@ -289,15 +294,15 @@ class _Header extends StatelessWidget {
             ]),
           ),
         ],
-        if (digits.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Row(children: [
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          if (digits.isNotEmpty) ...[
             _HeaderButton(Icons.call_rounded, 'Call', () => launchUrl(Uri.parse('tel:${c.phone}'))),
-            const SizedBox(width: 8),
-            _HeaderButton(Icons.chat_rounded, 'WhatsApp',
-                () => launchUrl(Uri.parse('https://wa.me/$wa'), mode: LaunchMode.externalApplication)),
-          ]),
-        ],
+            _HeaderButton(Icons.chat_rounded, 'WhatsApp', () => message(Channel.whatsapp)),
+          ],
+          if (c.instagram != null) _HeaderButton(Icons.camera_alt_rounded, 'Instagram', () => message(Channel.instagram)),
+          if (c.email != null) _HeaderButton(Icons.mail_rounded, 'Gmail', () => message(Channel.gmail)),
+        ]),
       ]),
     );
   }
@@ -429,6 +434,16 @@ class _BookingRow extends StatelessWidget {
                     const SizedBox(height: 6),
                     MoneyLine(rental: r),
                   ]),
+                ),
+                IconButton(
+                  tooltip: 'Send message / invoice',
+                  icon: const Icon(Icons.send_rounded, color: AppColors.plum),
+                  onPressed: () => showMessageSheet(context,
+                      name: r.customerName,
+                      phone: r.customerPhone,
+                      email: r.customerEmail,
+                      instagram: r.customerInstagram,
+                      rental: r),
                 ),
                 IconButton(
                   tooltip: 'Edit amounts',

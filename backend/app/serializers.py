@@ -27,6 +27,8 @@ def rental_out(r: Rental, now: datetime) -> RentalOut:
         cloth_image=image_url(r.cloth),
         customer_name=r.customer_name,
         customer_phone=r.customer_phone,
+        customer_email=r.customer_email,
+        customer_instagram=r.customer_instagram,
         start_at=r.start_at,
         end_at=r.end_at,
         returned_at=r.returned_at,

@@ -5,18 +5,23 @@ import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import 'inquiry_widgets.dart';
+import 'message_sheet.dart';
 
 /// "Mark returned": collect the rent balance and settle the deposit, then (if it came back early)
 /// show who's waiting for the freed dates. Returns true when the cloth was marked returned.
 Future<bool> markReturnedFlow(BuildContext context, Rental r) async {
-  final ok = await showModalBottomSheet<bool>(
+  final updated = await showModalBottomSheet<Rental>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.ivory,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
     builder: (_) => _MoneySheet(rental: r, returning: true),
   );
-  if (ok != true) return false;
+  if (updated == null) return false;
+  // Thank-you message with invoice (deposit details included) — can be skipped.
+  if (context.mounted) {
+    await offerBookingMessage(context, updated, 'returned', title: 'Send thank-you & invoice to ${r.customerName}?');
+  }
   final now = DateTime.now();
   if (context.mounted && r.endAt.isAfter(now)) {
     await showWaitlistSheet(context, clothId: r.clothId, clothCode: r.clothCode, from: now, to: r.endAt);
@@ -26,14 +31,18 @@ Future<bool> markReturnedFlow(BuildContext context, Rental r) async {
 
 /// Give back a deposit that was "decided later". Returns true when saved.
 Future<bool> settleDepositFlow(BuildContext context, Rental r) async {
-  final ok = await showModalBottomSheet<bool>(
+  final updated = await showModalBottomSheet<Rental>(
     context: context,
     isScrollControlled: true,
     backgroundColor: AppColors.ivory,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(28))),
     builder: (_) => _MoneySheet(rental: r, returning: false),
   );
-  return ok == true;
+  if (updated == null) return false;
+  if (context.mounted) {
+    await offerBookingMessage(context, updated, 'deposit', title: 'Tell ${r.customerName} about the deposit?');
+  }
+  return true;
 }
 
 enum _Deposit { full, keepSome, later }
@@ -81,15 +90,16 @@ class _MoneySheetState extends State<_MoneySheet> {
       _error = null;
     });
     try {
+      final Rental updated;
       if (widget.returning) {
-        await Api.instance.markReturned(r.id,
+        updated = await Api.instance.markReturned(r.id,
             collectBalance: r.balanceDue > 0 ? _collect : true, depositReturned: returned, depositNote: note);
       } else {
-        await Api.instance.settleDeposit(r.id, returned ?? r.depositAmount, note);
+        updated = await Api.instance.settleDeposit(r.id, returned ?? r.depositAmount, note);
       }
       if (!mounted) return;
       showSnack(context, widget.returning ? 'Marked as returned ✓' : 'Deposit settled ✓');
-      Navigator.pop(context, true);
+      Navigator.pop(context, updated);
     } on ApiException catch (e) {
       if (mounted) setState(() => _error = e.message);
     } finally {

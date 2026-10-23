@@ -6,6 +6,7 @@ import '../theme.dart';
 import '../utils.dart';
 import '../widgets/common.dart';
 import '../widgets/inquiry_widgets.dart';
+import '../widgets/message_sheet.dart';
 
 /// Give a cloth on rent (or book it for later). Pops `true` when saved.
 /// With [fromInquiry], the form is filled from a waitlist inquiry, which is marked "booked" on save.
@@ -24,6 +25,8 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
   final _form = GlobalKey<FormState>();
   late final _name = TextEditingController(text: widget.rental?.customerName ?? widget.fromInquiry?.name ?? '');
   late final _phone = TextEditingController(text: widget.rental?.customerPhone ?? widget.fromInquiry?.phone ?? '');
+  late final _email = TextEditingController(text: widget.rental?.customerEmail ?? widget.fromInquiry?.email ?? '');
+  late final _insta = TextEditingController(text: widget.rental?.customerInstagram ?? widget.fromInquiry?.instagram ?? '');
   late final _rent = TextEditingController(text: _money(_defaultRent()));
   late final _advance = TextEditingController(text: _money(widget.rental?.advancePaid ?? 0));
   late final _deposit = TextEditingController(text: _money(widget.rental?.depositAmount ?? 0));
@@ -75,8 +78,6 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
     if (i == null) return '';
     return [
       'From waitlist.',
-      if (i.instagram != null) 'Instagram: @${i.instagram}.',
-      if (i.email != null) 'Gmail: ${i.email}.',
       if (i.notes?.isNotEmpty ?? false) i.notes!,
     ].join(' ');
   }
@@ -104,6 +105,8 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
     final body = {
       'customer_name': _name.text.trim(),
       'customer_phone': _phone.text.trim().isEmpty ? null : _phone.text.trim(),
+      'customer_email': _email.text.trim(),
+      'customer_instagram': _insta.text.trim(),
       'start_at': apiDate(_start),
       'end_at': apiDate(_end),
       'rent_amount': _val(_rent),
@@ -113,17 +116,23 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
     };
     try {
       if (widget.rental == null) {
-        await Api.instance.createRental(widget.cloth.id, body);
+        final created = await Api.instance.createRental(widget.cloth.id, body);
         if (widget.fromInquiry != null) {
           try {
             await Api.instance.setInquiryStatus(widget.fromInquiry!.id, 'booked');
           } on ApiException catch (_) {} // the booking itself is saved
         }
+        if (!mounted) return;
+        showSnack(context, 'Saved ✓');
+        // Offer the booking confirmation (+ invoice) on WhatsApp / Gmail / Instagram. Can be skipped.
+        await offerBookingMessage(context, created, suggestedScenario(created),
+            title: 'Send booking confirmation to ${created.customerName}?');
       } else {
         await Api.instance.updateRental(widget.rental!.id, body);
+        if (!mounted) return;
+        showSnack(context, 'Saved ✓');
       }
       if (!mounted) return;
-      showSnack(context, 'Saved ✓');
       Navigator.pop(context, true);
     } on ApiException catch (e) {
       if (mounted) showSnack(context, e.message, error: true);
@@ -236,9 +245,21 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
             controller: _phone,
             keyboardType: TextInputType.phone,
             decoration: const InputDecoration(
-              labelText: 'Phone (for reminders)',
+              labelText: 'Phone / WhatsApp',
               prefixIcon: Icon(Icons.phone_rounded),
             ),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _email,
+            keyboardType: TextInputType.emailAddress,
+            decoration: const InputDecoration(labelText: 'Gmail (optional)', prefixIcon: Icon(Icons.mail_rounded)),
+          ),
+          const SizedBox(height: 12),
+          TextFormField(
+            controller: _insta,
+            decoration: const InputDecoration(
+                labelText: 'Instagram ID (optional)', hintText: 'e.g. riya.styles', prefixIcon: Icon(Icons.camera_alt_rounded)),
           ),
           const SizedBox(height: 12),
           const SectionTitle('Payment'),

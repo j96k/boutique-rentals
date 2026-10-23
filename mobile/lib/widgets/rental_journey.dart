@@ -8,6 +8,7 @@ import '../screens/customers_screen.dart';
 import '../theme.dart';
 import '../utils.dart';
 import 'common.dart';
+import 'message_sheet.dart';
 
 /// The signature card: a garment's trip from the boutique to the customer
 /// and back, drawn like a thread with a needle moving along it.
@@ -134,7 +135,7 @@ class _RentalJourneyCardState extends State<RentalJourneyCard> {
                 child: Text(r.notes!, style: const TextStyle(color: AppColors.muted)),
               ),
           ],
-          if (r.isActive && (widget.onReturn != null || widget.onEdit != null || widget.onCancel != null || widget.onAmounts != null || r.customerPhone != null)) ...[
+          if (r.isActive && (widget.onReturn != null || widget.onEdit != null || widget.onCancel != null || widget.onAmounts != null || r.customerPhone != null || r.customerEmail != null || r.customerInstagram != null)) ...[
             const SizedBox(height: 14),
             Wrap(spacing: 8, runSpacing: 8, children: [
               if (widget.onReturn != null && status != 'booked')
@@ -145,8 +146,11 @@ class _RentalJourneyCardState extends State<RentalJourneyCard> {
                 _Action(Icons.event_busy_rounded, 'Cancel booking', widget.onCancel!, danger: true),
               if (r.customerPhone?.isNotEmpty ?? false) ...[
                 _Action(Icons.call_rounded, 'Call', () => launchUrl(Uri.parse('tel:${r.customerPhone}'))),
-                _Action(Icons.chat_rounded, 'WhatsApp', () => _whatsApp(r, status)),
+                _Action(Icons.chat_rounded, 'WhatsApp', () => _message(Channel.whatsapp)),
               ],
+              if (r.customerInstagram?.isNotEmpty ?? false)
+                _Action(Icons.camera_alt_rounded, 'Instagram', () => _message(Channel.instagram)),
+              if (r.customerEmail?.isNotEmpty ?? false) _Action(Icons.mail_rounded, 'Gmail', () => _message(Channel.gmail)),
             ]),
           ],
         ]),
@@ -154,14 +158,18 @@ class _RentalJourneyCardState extends State<RentalJourneyCard> {
     );
   }
 
-  void _whatsApp(Rental r, String status) {
-    final digits = r.customerPhone!.replaceAll(RegExp(r'[^0-9]'), '');
-    final phone = digits.length == 10 ? '91$digits' : digits; // assume India if no country code
-    final msg = status == 'overdue'
-        ? 'Hello ${r.customerName}, a gentle reminder: "${r.clothName}" (${r.clothCode}) was due back on ${fmtDateTime(r.endAt)}. Please return it at the earliest. Thank you!'
-        : 'Hello ${r.customerName}, a reminder that "${r.clothName}" (${r.clothCode}) is due back on ${fmtDateTime(r.endAt)}. Thank you!';
-    launchUrl(Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(msg)}'), mode: LaunchMode.externalApplication);
+  /// Opens the composer: message type + optional invoice, editable, then WhatsApp / Gmail / Instagram.
+  void _message(Channel channel) {
+    final r = widget.rental;
+    showMessageSheet(context,
+        name: r.customerName,
+        phone: r.customerPhone,
+        email: r.customerEmail,
+        instagram: r.customerInstagram,
+        rental: r,
+        channel: channel);
   }
+
 }
 
 class _Thread extends StatelessWidget {

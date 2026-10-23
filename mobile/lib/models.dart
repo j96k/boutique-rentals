@@ -21,6 +21,8 @@ class Rental {
     this.clothImage,
     required this.customerName,
     this.customerPhone,
+    this.customerEmail,
+    this.customerInstagram,
     required this.startAt,
     required this.endAt,
     this.returnedAt,
@@ -44,6 +46,8 @@ class Rental {
   final String? clothImage;
   final String customerName;
   final String? customerPhone;
+  final String? customerEmail;
+  final String? customerInstagram;
   final DateTime startAt;
   final DateTime endAt;
   final DateTime? returnedAt;
@@ -69,6 +73,8 @@ class Rental {
         clothImage: j['cloth_image'],
         customerName: j['customer_name'],
         customerPhone: j['customer_phone'],
+        customerEmail: j['customer_email'],
+        customerInstagram: j['customer_instagram'],
         startAt: _date(j['start_at'])!,
         endAt: _date(j['end_at'])!,
         returnedAt: _date(j['returned_at']),
@@ -348,6 +354,8 @@ class CustomerSummary {
       : key = j['key'],
         name = j['name'],
         phone = j['phone'],
+        email = j['email'],
+        instagram = j['instagram'],
         bookings = j['bookings'],
         lastBookingAt = _date(j['last_booking_at']),
         rentTotal = _num(j['rent_total']),
@@ -361,6 +369,8 @@ class CustomerSummary {
   final String key;
   final String name;
   final String? phone;
+  final String? email;
+  final String? instagram;
   final int bookings;
   final DateTime? lastBookingAt;
   final double rentTotal, rentPaid, balanceDue, depositsHeld, depositsReturned, depositsKept;

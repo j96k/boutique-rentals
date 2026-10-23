@@ -71,6 +71,9 @@ _NEW_COLUMNS = {
         ("deposit_returned", "NUMERIC(10,2)"),
         ("deposit_note", "TEXT"),
         ("deposit_settled_at", "TIMESTAMP"),
+        ("invoice_token", "VARCHAR(40)"),
+        ("customer_email", "VARCHAR(120)"),
+        ("customer_instagram", "VARCHAR(60)"),
     ],
 }
 

@@ -9,6 +9,7 @@ import '../widgets/booking_calendar.dart';
 import '../widgets/amounts_sheet.dart';
 import '../widgets/common.dart';
 import '../widgets/inquiry_widgets.dart';
+import '../widgets/message_sheet.dart';
 import '../widgets/rental_journey.dart';
 import '../widgets/return_sheet.dart';
 import 'cloth_form_screen.dart';
@@ -415,6 +416,19 @@ class _HistoryTile extends StatelessWidget {
                 },
                 icon: const Icon(Icons.currency_rupee_rounded, size: 18),
                 label: const Text('Edit amounts'),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 0, 16, 0),
+              child: TextButton.icon(
+                onPressed: () => showMessageSheet(context,
+                    name: r.customerName,
+                    phone: r.customerPhone,
+                    email: r.customerEmail,
+                    instagram: r.customerInstagram,
+                    rental: r),
+                icon: const Icon(Icons.send_rounded, size: 18),
+                label: const Text('Send invoice / message'),
               ),
             ),
             if (r.depositStatus == 'held')

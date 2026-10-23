@@ -9,6 +9,7 @@ import '../screens/rental_form_screen.dart';
 import '../theme.dart';
 import '../utils.dart';
 import 'common.dart';
+import 'message_sheet.dart';
 
 Color inquiryStatusColor(String s) => switch (s) {
       'waiting' => AppColors.booked,
@@ -36,35 +37,31 @@ String _offerMessage(Inquiry i) {
 }
 
 /// Opens Call / WhatsApp / Instagram / Gmail, then marks a waiting inquiry as "contacted".
+/// Call opens the dialer. WhatsApp / Instagram / Gmail open the message composer with the
+/// "it's available" message (editable). A waiting inquiry is marked "contacted" once sent.
 Future<void> contactInquiry(BuildContext context, Inquiry i, String how, {VoidCallback? onChanged}) async {
-  final Uri uri;
-  switch (how) {
-    case 'call':
-      uri = Uri.parse('tel:${i.phone}');
-    case 'whatsapp':
-      final digits = i.phone!.replaceAll(RegExp(r'[^0-9]'), '');
-      final phone = digits.length == 10 ? '91$digits' : digits; // assume India if no country code
-      uri = Uri.parse('https://wa.me/$phone?text=${Uri.encodeComponent(_offerMessage(i))}');
-    case 'instagram':
-      uri = Uri.parse('https://instagram.com/${Uri.encodeComponent(i.instagram!)}');
-    default:
-      uri = Uri(scheme: 'mailto', path: i.email, query: _mailQuery(i));
+  final bool sent;
+  if (how == 'call') {
+    sent = await launchUrl(Uri.parse('tel:${i.phone}'), mode: LaunchMode.externalApplication);
+    if (!sent && context.mounted) showSnack(context, 'Could not open the phone app', error: true);
+  } else {
+    sent = await showMessageSheet(
+      context,
+      name: i.name,
+      phone: i.phone,
+      email: i.email,
+      instagram: i.instagram,
+      initialText: _offerMessage(i),
+      channel: switch (how) { 'whatsapp' => Channel.whatsapp, 'instagram' => Channel.instagram, _ => Channel.gmail },
+    );
   }
-  final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
-  if (!ok) {
-    if (context.mounted) showSnack(context, 'Could not open the app for this', error: true);
-    return;
-  }
-  if (i.status == 'waiting') {
+  if (sent && i.status == 'waiting') {
     try {
       await Api.instance.setInquiryStatus(i.id, 'contacted');
       onChanged?.call();
     } on ApiException catch (_) {}
   }
 }
-
-String _mailQuery(Inquiry i) => 'subject=${Uri.encodeComponent('${i.clothName} (${i.clothCode}) is available')}'
-    '&body=${Uri.encodeComponent(_offerMessage(i))}';
 
 /// Opens the booking form filled from the inquiry; marks it "booked" when saved.
 Future<bool> convertInquiryToBooking(BuildContext context, Inquiry i) async {

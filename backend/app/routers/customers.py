@@ -55,10 +55,19 @@ def _summary(key: str, g: dict) -> dict:
     phone = (latest.customer_phone if latest and latest.customer_phone else None) or next(
         (i.phone for i in inquiries if i.phone), None
     )
+    # Most recent Gmail / Instagram this customer gave (bookings first, then waitlist).
+    email = next((r.customer_email for r in rentals if r.customer_email), None) or next(
+        (i.email for i in inquiries if i.email), None
+    )
+    instagram = next((r.customer_instagram for r in rentals if r.customer_instagram), None) or next(
+        (i.instagram for i in inquiries if i.instagram), None
+    )
     return dict(
         key=key,
         name=name,
         phone=phone,
+        email=email,
+        instagram=instagram,
         bookings=len(rentals),
         last_booking_at=latest.start_at if latest else None,
         rent_total=sum(float(r.rent_amount or 0) for r in rentals),

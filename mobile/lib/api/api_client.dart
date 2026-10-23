@@ -195,6 +195,11 @@ class Api {
         'deposit_returned': depositReturned,
         'deposit_note': depositNote,
       }));
+  /// Private invoice page link for a booking: (full url, invoice number).
+  Future<(String, String)> invoiceLink(int rentalId) async {
+    final j = await post('/rentals/$rentalId/invoice-link');
+    return ('$baseUrl${j['path']}', j['number'] as String);
+  }
   Future<Rental> settleDeposit(int id, double returned, String? note) async =>
       Rental.fromJson(await post('/rentals/$id/deposit', {'deposit_returned': returned, 'deposit_note': note}));
   Future<List<CustomerSummary>> customers(String q) async =>

@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, time, timedelta
 
 from fastapi import APIRouter, Body, Depends, HTTPException
@@ -47,7 +48,9 @@ def _check_overlap(db: Session, cloth_id: int, start: datetime, end: datetime, i
 
 
 def _apply_rental(rental: Rental, body: RentalIn, cloth: Cloth) -> None:
-    for k, v in body.model_dump(exclude={"start_at", "end_at", "rent_amount"}).items():
+    # Gmail / Instagram are only changed when sent (older app versions and "Edit amounts" don't send them).
+    keep_if_unsent = {"customer_email", "customer_instagram"} - body.model_fields_set
+    for k, v in body.model_dump(exclude={"start_at", "end_at", "rent_amount", *keep_if_unsent}).items():
         setattr(rental, k, v)
     rental.start_at, rental.end_at = body.start_at.replace(tzinfo=None), body.end_at.replace(tzinfo=None)
     # Older app versions don't send a rent amount: keep the current one, or use the cloth's price.
@@ -108,6 +111,16 @@ def mark_returned(
         _settle_deposit(rental, body.deposit_returned, body.deposit_note)
     db.commit()
     return rental_out(rental, datetime.now())
+
+
+@router.post("/rentals/{rental_id}/invoice-link")
+def invoice_link(rental_id: int, user: User = Depends(current_user), db: Session = Depends(get_db)):
+    """A private link to a printable invoice page the customer can open (no login)."""
+    rental = _owned_rental(db, user, rental_id)
+    if not rental.invoice_token:
+        rental.invoice_token = secrets.token_urlsafe(16)
+        db.commit()
+    return {"path": f"/invoice/{rental.invoice_token}", "number": f"INV-{rental.id:05d}"}
 
 
 @router.post("/rentals/{rental_id}/deposit", response_model=RentalOut)

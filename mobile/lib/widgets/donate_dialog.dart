@@ -50,9 +50,23 @@ class _DonateDialogState extends State<_DonateDialog> {
     return 'upi://pay?${q.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&')}';
   }
 
+  /// A phone (app or phone browser) can open UPI apps; a PC browser can't.
+  bool get _canOpenUpiApps =>
+      defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Opens the phone's UPI app chooser (GPay, PhonePe, CRED, Paytm, BHIM…) with amount filled in.
+  /// On a PC, or if no UPI app opens, shows the QR code to scan with a phone instead.
   Future<void> _payUpi() async {
-    final opened = !kIsWeb && await launchUrl(Uri.parse(_upiLink), mode: LaunchMode.externalApplication);
-    if (!opened && mounted) setState(() => _showQr = true); // web / no UPI app: scan the QR instead
+    var opened = false;
+    if (_canOpenUpiApps) {
+      try {
+        opened = await launchUrl(Uri.parse(_upiLink), mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+    if (!opened && mounted) {
+      setState(() => _showQr = true);
+      showSnack(context, _canOpenUpiApps ? 'No UPI app found — scan the QR code instead' : 'Scan this QR code with your phone');
+    }
   }
 
   Future<void> _copyUpi() async {
@@ -117,9 +131,47 @@ class _DonateDialogState extends State<_DonateDialog> {
               icon: const Icon(Icons.volunteer_activism_rounded),
               label: Text('Donate ${fmtMoney(_value)} via UPI'),
             ),
+            const SizedBox(height: 10),
+            // The UPI ID itself: tap = open GPay / PhonePe / CRED…, copy icon = copy the ID.
+            Material(
+              color: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+                side: const BorderSide(color: AppColors.line),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: _value >= 1 ? _payUpi : null,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+                  child: Row(children: [
+                    const Icon(Icons.account_balance_wallet_rounded, color: AppColors.plum),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        const Text('UPI ID  •  tap to pay', style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                        Text(info!.upiId!,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                      ]),
+                    ),
+                    IconButton(
+                      tooltip: 'Copy UPI ID',
+                      onPressed: _copyUpi,
+                      icon: const Icon(Icons.copy_rounded, size: 20, color: AppColors.plumSoft),
+                    ),
+                  ]),
+                ),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(top: 4),
+              child: Text('Opens GPay, PhonePe, CRED, Paytm or any UPI app',
+                  textAlign: TextAlign.center, style: TextStyle(fontSize: 11, color: AppColors.muted)),
+            ),
             TextButton(
               onPressed: () => setState(() => _showQr = !_showQr),
-              child: Text(_showQr ? 'Hide QR code' : 'Show UPI QR code (scan from any phone)'),
+              child: Text(_showQr ? 'Hide QR code' : 'Show QR code (scan from another phone)'),
             ),
             if (_showQr) ...[
               Center(
@@ -130,19 +182,8 @@ class _DonateDialogState extends State<_DonateDialog> {
                 ),
               ),
               const SizedBox(height: 6),
-              Center(
-                child: InkWell(
-                  onTap: _copyUpi,
-                  child: Padding(
-                    padding: const EdgeInsets.all(4),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Text('UPI: ${info!.upiId}', style: const TextStyle(fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.copy_rounded, size: 16, color: AppColors.plumSoft),
-                    ]),
-                  ),
-                ),
-              ),
+              Text('Scan with any UPI app to donate ${fmtMoney(_value)}',
+                  textAlign: TextAlign.center, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
             ],
           ],
           if (info?.url != null)

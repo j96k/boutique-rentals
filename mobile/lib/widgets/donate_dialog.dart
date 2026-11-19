@@ -10,20 +10,22 @@ import '../screens/feedback_screen.dart';
 import '../theme.dart';
 import '../utils.dart';
 
-/// Friendly "this app is free — donate if you like it" pop-up.
-/// Shown every time the app opens or someone logs in (phone and web).
-Future<void> showDonateDialog(BuildContext context) async {
+/// Friendly "Support us — this app is free" pop-up.
+/// Shown after a booking is confirmed and after a successful return (and from Profile → Support us).
+/// [headline] says what just happened, e.g. "Booking confirmed 🎉".
+Future<void> showDonateDialog(BuildContext context, {String? headline}) async {
   DonateInfo? info;
   try {
     info = await Api.instance.donateInfo();
   } catch (_) {} // offline: still show the thank-you, just without UPI details
   if (!context.mounted) return;
-  await showDialog(context: context, builder: (_) => _DonateDialog(info: info));
+  await showDialog(context: context, builder: (_) => _DonateDialog(info: info, headline: headline));
 }
 
 class _DonateDialog extends StatefulWidget {
-  const _DonateDialog({this.info});
+  const _DonateDialog({this.info, this.headline});
   final DonateInfo? info;
+  final String? headline;
 
   @override
   State<_DonateDialog> createState() => _DonateDialogState();
@@ -91,11 +93,18 @@ class _DonateDialogState extends State<_DonateDialog> {
         decoration: const BoxDecoration(color: AppColors.goldSoft, shape: BoxShape.circle),
         child: const Icon(Icons.favorite_rounded, color: AppColors.plum, size: 30),
       ),
-      title: const Text('Boutique Rentals is free for you', textAlign: TextAlign.center),
+      title: const Text('Support us 💜', textAlign: TextAlign.center),
       content: SingleChildScrollView(
         child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          if (widget.headline != null)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(widget.headline!,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(fontWeight: FontWeight.w800, color: AppColors.plum, fontSize: 16)),
+            ),
           const Text(
-            'If it helps your boutique, please consider a small donation. '
+            'Boutique Rentals is free for you. If it helps your boutique, please consider a small donation. '
             'It encourages us to keep improving this app and to create new free products for people. 💜',
             textAlign: TextAlign.center,
             style: TextStyle(height: 1.45),

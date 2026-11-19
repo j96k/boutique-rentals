@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../api/api_client.dart';
-import '../widgets/donate_dialog.dart';
+import '../widgets/ideas_dialog.dart';
 
 import 'calendar_screen.dart';
 import 'earnings_screen.dart';
@@ -26,13 +26,14 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // Every app open / login: refresh account info (admin flag), then the "free app — donate?" pop-up.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      try {
-        await Api.instance.refreshMe();
+    // Every app open / login: the "Ideas & requests" pop-up straight away (no waiting for the server),
+    // while account info (admin flag) and the donation details load in the background.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Api.instance.refreshMe().then((_) {
         if (mounted) setState(() {});
-      } catch (_) {}
-      if (mounted) await showDonateDialog(context);
+      }).catchError((_) {});
+      Api.instance.donateInfo().then((_) {}, onError: (_) {}); // warm up for "Support us"
+      if (mounted) showIdeasDialog(context);
     });
   }
 

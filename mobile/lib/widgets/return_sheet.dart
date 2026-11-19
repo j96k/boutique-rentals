@@ -4,6 +4,7 @@ import '../api/api_client.dart';
 import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
+import 'donate_dialog.dart';
 import 'inquiry_widgets.dart';
 import 'message_sheet.dart';
 
@@ -26,6 +27,8 @@ Future<bool> markReturnedFlow(BuildContext context, Rental r) async {
   if (context.mounted && r.endAt.isAfter(now)) {
     await showWaitlistSheet(context, clothId: r.clothId, clothCode: r.clothCode, from: now, to: r.endAt);
   }
+  // "Support us" pop-up after every successful return.
+  if (context.mounted) await showDonateDialog(context, headline: '${r.clothCode} returned successfully ✓');
   return true;
 }
 

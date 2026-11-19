@@ -242,7 +242,9 @@ class Api {
   Future<List<Inquiry>> readyInquiries() async => _inquiries(await get('/inquiries/ready'));
 
   // ---------------- Donations, ideas & requests ----------------
-  Future<DonateInfo> donateInfo() async => DonateInfo.fromJson((await get('/app-config'))['donate']);
+  DonateInfo? _donate; // cached so the "Support us" pop-up opens instantly the second time
+  Future<DonateInfo> donateInfo() async =>
+      _donate ??= DonateInfo.fromJson((await get('/app-config'))['donate']);
 
   List<FeedbackItem> _feedback(dynamic list) => (list as List).map((e) => FeedbackItem.fromJson(e)).toList();
   Future<FeedbackItem> sendFeedback(String category, String message, String? contact) async => FeedbackItem.fromJson(

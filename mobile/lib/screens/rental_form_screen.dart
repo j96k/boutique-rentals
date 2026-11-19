@@ -5,6 +5,7 @@ import '../models.dart';
 import '../theme.dart';
 import '../utils.dart';
 import '../widgets/common.dart';
+import '../widgets/donate_dialog.dart';
 import '../widgets/inquiry_widgets.dart';
 import '../widgets/message_sheet.dart';
 
@@ -127,6 +128,8 @@ class _RentalFormScreenState extends State<RentalFormScreen> {
         // Offer the booking confirmation (+ invoice) on WhatsApp / Gmail / Instagram. Can be skipped.
         await offerBookingMessage(context, created, suggestedScenario(created),
             title: 'Send booking confirmation to ${created.customerName}?');
+        // "Support us" pop-up after every confirmed booking.
+        if (mounted) await showDonateDialog(context, headline: 'Booking confirmed for ${created.customerName} 🎉');
       } else {
         await Api.instance.updateRental(widget.rental!.id, body);
         if (!mounted) return;
